@@ -52,6 +52,11 @@ jobs:
         run: |
           docker compose up -d --build --wait
 
+      - name: Create test database
+        run: |
+          docker compose exec -T db psql -U ${{ secrets.TEST_POSTGRES_USER }} -d postgres -c "CREATE DATABASE ${{ secrets.TEST_POSTGRES_DB }};" 
+
+
       - name: Run tests
         run: |
           docker compose exec -T web pytest 
