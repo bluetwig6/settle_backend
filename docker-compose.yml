@@ -1,0 +1,35 @@
+services:
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: "service_healthy"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./:/code:ro
+    env_file:
+      .env
+    ports:
+      - "8000:8000"
+    restart: always
+
+  db:
+    image: postgres:16
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - ${POSTGRES_PORT}:5432
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    env_file:
+      .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d settle_db -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
