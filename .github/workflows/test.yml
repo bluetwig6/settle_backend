@@ -1,4 +1,4 @@
-name: [Testing inside docker container]
+name: Testing inside docker container
 
 on:
   push:
