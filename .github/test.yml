@@ -1,0 +1,63 @@
+name: [Testing inside docker container]
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    environment: testing 
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        # This is the version of the action for setting up Python, not the Python version.
+        uses: actions/setup-python@v5
+        with:
+          # Semantic version range syntax or exact version of a Python version
+          python-version: '3.x'
+          # Optional - x64 or x86 architecture, defaults to x64
+          architecture: 'x64'
+      
+      # You can test your matrix by printing the current Python version
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Create .env file for testing
+        run: |
+          touch .env
+          echo 'JWT_SECRET_KEY="${{ secrets.TEST_JWT_SECRET_KEY }}"' >> .env
+          echo 'JWT_ACCESS_TOKEN_EXPIRE_MINUTES="${{ secrets.TEST_JWT_ACCESS_TOKEN_EXPIRE_MINUTES }}"' >> .env
+          echo 'JWT_ALGORITHM="${{ secrets.TEST_JWT_ALGORITHM }}"' >> .env
+
+          echo 'POSTGRES_USER="${{ secrets.TEST_POSTGRES_USER }}"' >> .env
+          echo 'POSTGRES_PASSWORD="${{ secrets.TEST_POSTGRES_PASSWORD }}"' >> .env
+          echo 'POSTGRES_DB="${{ secrets.TEST_POSTGRES_DB }}"' >> .env
+          echo 'POSTGRES_HOST="${{ secrets.TEST_POSTGRES_HOST }}"' >> .env
+          echo 'POSTGRES_PORT="${{ secrets.TEST_POSTGRES_PORT }}"' >> .env
+          
+          # Safely verify the file was created without leaking the sensitive key
+          echo ".env file created successfully:"
+          grep -v "POSTGRES_USER" .env
+
+      - name: Build docker containers
+        run: |
+          docker compose up -d --build --wait
+
+      - name: Run tests
+        run: |
+          docker compose exec -T web pytest 
+
+      - name: Clean up sensitive files
+        if: always()
+        run: |
+          rm -f .env
+          echo "Environment file securely removed from runner."
