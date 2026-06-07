@@ -16,6 +16,7 @@ jobs:
     name: Continuous Delivery # build the image and pushes it to ECR
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,6 +48,7 @@ jobs:
     name: Continuous Deployment # Runs on the ec2 runner. Fetches the image from ECR and runs it
     needs: build-and-push-ecr-image
     runs-on: self-hosted # name of the runner on ec2
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
