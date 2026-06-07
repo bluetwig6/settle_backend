@@ -66,6 +66,11 @@ jobs:
 
       - name: Create temporary .env file for production
         run: |
+          echo 'JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"' >> .env
+          echo 'JWT_ACCESS_TOKEN_EXPIRE_MINUTES="${{ secrets.JWT_ACCESS_TOKEN_EXPIRE_MINUTES }}"' >> .env
+          echo 'JWT_ALGORITHM="${{ secrets.JWT_ALGORITHM }}"' >> .env
+
+          echo 'POSTGRES_HOST="${{ secrets.POSTGRES_HOST }}"' >> .env
           echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
           echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
           echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
