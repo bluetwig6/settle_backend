@@ -72,26 +72,21 @@ jobs:
           echo "POSTGRES_PORT=5432" >> .env
 
       - name: Pull latest image from ECR
-        # Safe catch-all for your very first run when ECR is empty
         continue-on-error: true 
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
         run: |
+          # Tag it locally so the build engine recognizes it as a local layer cache
           docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest ecr-cache-web:latest
 
       - name: Deploy using local docker-compose
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
         run: |
-          # 1. Stop the current running containers
           docker-compose down
           
-          # 2. Use the pulled image layer cache if it exists
-          COMPOSE_DOCKER_CLI_BUILD=1 docker-compose build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $ECR_REGISTRY/$ECR_REPOSITORY:latest web
+          docker-compose build web
           
-          # 3. Bring the stack up
           docker-compose up -d
 
       - name: Clean previous images and containers
@@ -99,3 +94,6 @@ jobs:
           docker system prune -f
           # Remove the temporary .env file for security
           rm -f .env
+
+#  ${{}} runs and places data at compile time
+# $ runs on the shell and is used to access variables
