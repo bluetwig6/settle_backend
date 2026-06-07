@@ -26,7 +26,8 @@ services:
     env_file:
       .env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d settle_db -U postgres"]
+    # $$ forces the varible resolution inside the container instead of the host machine
+      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER"]
       interval: 5s
       timeout: 5s
       retries: 5
