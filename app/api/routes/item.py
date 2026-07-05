@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Response
-
-from app.core.dependecies import DCurrentUser, DItemService, SessionDep
+from fastapi import APIRouter, Response, Path
+from typing import Annotated
+from app.core.dependecies import DCurrentUser, DItemService, SessionDep, DCurrentUserInItemGroup
 from app.models import ItemCreate, ItemExposed
 
 
@@ -16,12 +16,12 @@ async def add_item(
   item = await item_service.create_item(session,current_user,item=item_data)
   return item
 
-@router.delete("/", response_model=None)
+@router.delete("/{item_id}", response_model=None)
 async def delete_item(
   session: SessionDep,
   item_service: DItemService,
-  current_user: DCurrentUser,
-  id: int
+  current_user: DCurrentUserInItemGroup,
+  item_id: Annotated[int, Path(title="The ID of the item to be deleted")]
 ):
-  await item_service.delete_item(session,current_user,id )
+  await item_service.delete_item(session,current_user,id=item_id )
   return Response(status_code=204)

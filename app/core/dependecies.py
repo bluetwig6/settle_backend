@@ -2,10 +2,10 @@ from typing import Annotated
 
 from sqlmodel import Session, create_engine, select
 from pwdlib import PasswordHash
-from app.models import User, UserGroupLink
+from app.models import User, UserGroupLink, Group, Expense
 from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import OAuth2PasswordBearer
-from app.models import TokenData
+from app.models import TokenData, Item
 from app.config import get_app_settings
 
 from app.services import user
@@ -108,5 +108,38 @@ async def is_current_user_in_Group(
         )
         
     return current_user
+
+async def is_current_user_in_item_group(
+    current_user: DCurrentUser,
+    item_id: Annotated[int, Path(title="The ID of the item")],
+    session: SessionDep
+):
+    
+    group_id_statement = (
+        select(Group.id)
+        .outerjoin(Expense, Group.id == Expense.group_id)
+        .outerjoin(Item, Expense.id == Item.expense_id)
+        .where(Item.id == item_id)    
+    )
+    
+    user_group_id_statement = (
+        select(
+            UserGroupLink.group_id
+        )
+        .where(UserGroupLink.user_id == current_user.id)    
+    )
+    
+    user_group_ids = session.exec(user_group_id_statement).all()
+    item_group_id = session.exec(group_id_statement).first()
+    print( user_group_ids, item_group_id)
+    if not item_group_id in user_group_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User not part of this item's group",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    return current_user
         
 DCurrentUserInGroup = Annotated[User, Depends(is_current_user_in_Group)]
+DCurrentUserInItemGroup = Annotated[User, Depends(is_current_user_in_item_group)]

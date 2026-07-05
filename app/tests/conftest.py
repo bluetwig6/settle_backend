@@ -9,6 +9,8 @@ from app.main import app
 from app.core.dependecies import engine, get_session
 from app.tests.factories.group import GroupFactory
 from app.tests.factories.user import UserFactory
+from app.tests.factories.expense import ExpenseFactory
+from app.tests.factories.item import ItemFactory
 
 def create_test_database() -> None:
     SQLModel.metadata.create_all(engine)
@@ -71,4 +73,6 @@ def db_session() -> Generator[Session, None, None]:
 def set_session_for_factories(db_session: Session):
     UserFactory._meta.sqlalchemy_session = db_session # type: ignore
     GroupFactory._meta.sqlalchemy_session = db_session # type: ignore
+    ExpenseFactory._meta.sqlalchemy_session = db_session # type: ignore
+    ItemFactory._meta.sqlalchemy_session = db_session # type: ignore
     yield 
