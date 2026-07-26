@@ -1,3 +1,7 @@
+from datetime import datetime, timedelta, timezone
+import hashlib
+import secrets
+from app.interfaces.repositories.passwordResetToken import IPasswordResetTokenRepository
 from app.interfaces.services.user import IUserService
 from sqlmodel import Session
 from typing import Annotated
@@ -21,11 +25,12 @@ class UserAuthService(IUserAuthService):
   def __init__(
     self, 
     user_service: IUserService, 
-    auth_token_service: IAuthTokenService
+    auth_token_service: IAuthTokenService,
+    password_reset_token_repo: IPasswordResetTokenRepository
   ):
       self._user_service = user_service
       self._auth_token_service = auth_token_service
-
+      self._password_reset_token_repo = password_reset_token_repo
 
   async def sign_in_user(
     self,
@@ -68,3 +73,83 @@ class UserAuthService(IUserAuthService):
             status_code=status.HTTP_409_CONFLICT,
             detail= message
         )
+
+  async def send_reset_password_email(
+    self, 
+    session: Session, 
+    email: str,
+    ) -> bool:
+
+    user = await self._user_service.get_user_by_email(session,email)
+    if not user:
+      return True
+    try: 
+      # delte old tokens
+      await self._password_reset_token_repo.delete_all_existing_tokens_for_user_id(session=session, user_id=user.id)
+      # save new token
+      random_string = secrets.token_hex(32)
+      token_hash = hashlib.sha256(random_string.encode()).hexdigest()
+      expiration_time = datetime.now(timezone.utc) + timedelta(seconds=180)
+      await self._password_reset_token_repo.save_token_hash(session, user_id=user.id, token_hash=token_hash, expiration_time=expiration_time )
+      # send email here
+      print(random_string)
+      return True
+    except Exception as _e:
+      session.rollback()
+      raise HTTPException(
+          status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+          detail="An error occurred while processing your password reset request."
+      )
+        
+        
+  async def reset_password(self, session: Session, token: str, new_password: str) -> bool:
+    incoming_hash =  hashlib.sha256(token.encode()).hexdigest()
+    hash_in_db = await self._password_reset_token_repo.get_token_object_by_hash_or_none(session=session, token_hash=incoming_hash)
+    if not hash_in_db:
+      raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The reset link is invalid or has already been used."
+      )
+    if datetime.now(timezone.utc) > hash_in_db.expires_at.astimezone(timezone.utc):
+      try:
+        await self._password_reset_token_repo.delete_token_by_hash(session, token_hash=incoming_hash)
+      except Exception:
+        session.rollback() # Clean up the database state immediately!
+        
+      # Still raise the intended 400 error whether the delete succeeded or failed
+      raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The reset link is invalid or has already been used."
+        )
+    user = await self._user_service.get_user_by_id_or_none(session, user_id=hash_in_db.user_id)
+    if not user:
+      raise HTTPException(
+          status_code=status.HTTP_404_NOT_FOUND,
+          detail="User not found."
+      )
+    try:
+        # delete token
+        delete_sucess = await self._password_reset_token_repo.delete_token_by_hash(session,token_hash=incoming_hash)
+        if not delete_sucess:
+          raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Transaction processing failure."
+          ) 
+        
+        hashed_password = get_password_hash(new_password)
+        user.hashed_password = hashed_password
+        await self._user_service.update_user(session=session, user=user)
+        return True
+    except HTTPException:
+      session.rollback()
+      raise  # Re-raise explicit HTTP exceptions caught inside the block
+    except Exception:
+      session.rollback()
+      raise HTTPException(
+          status_code=status.HTTP_400_BAD_REQUEST,
+          detail="Unable to reset password. Please try again."
+      )
+        
+        
+# encode token -> send token in email -> hash token -> store in db
+# receive token -> hash it -> find hash in db -> if found -> remove from db, if not found -> hash is already used or is not valid 

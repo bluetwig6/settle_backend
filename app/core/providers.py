@@ -1,8 +1,10 @@
 from app.infrastructure.repositories.contribution import ContributionRepository
 from app.infrastructure.repositories.item import ItemRepository
+from app.infrastructure.repositories.passwordResetToken import PasswordResetTokenRespository
 from app.infrastructure.repositories.payment import PaymentRepository
 from app.interfaces.repositories.contribution import IContributionRepository
 from app.interfaces.repositories.item import IItemRepository
+from app.interfaces.repositories.passwordResetToken import IPasswordResetTokenRepository
 from app.interfaces.repositories.payment import IPaymentRepository
 from app.interfaces.repositories.user import IUserRepository
 from app.interfaces.repositories.group import IGroupRepository 
@@ -50,6 +52,9 @@ def get_payment_repo() -> IPaymentRepository:
 def get_contribution_repo() -> IContributionRepository:
   return ContributionRepository()
 
+def get_password_reset_token_repo() -> IPasswordResetTokenRepository:
+  return PasswordResetTokenRespository()
+
 # SERVICES
 def get_user_service() -> IUserService:
   return UserService(user_repo=get_user_repo(), group_repo=get_group_repo())
@@ -63,7 +68,7 @@ def get_auth_token_service() -> IAuthTokenService:
   )
 
 def get_user_auth_service() -> IUserAuthService:
-  return UserAuthService(user_service=get_user_service(), auth_token_service=get_auth_token_service())
+  return UserAuthService(user_service=get_user_service(), auth_token_service=get_auth_token_service(), password_reset_token_repo=get_password_reset_token_repo())
 
 def get_group_service() -> IGroupService:
   return GroupService(group_repo=get_group_repo())

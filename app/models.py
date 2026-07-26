@@ -1,9 +1,10 @@
 from typing import NotRequired
+from sqlalchemy import Column
 from typing_extensions import TypedDict
 
 from sqlmodel import Field, SQLModel, Relationship, DateTime
 from pydantic import BaseModel, computed_field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 from collections import defaultdict
@@ -13,6 +14,9 @@ from pydantic import TypeAdapter
 class TokenData(BaseModel):
     username: str | None = None
 
+class ResetPasswordTokenData(BaseModel):
+    email: str | None = None
+
 class UserGroupLink(SQLModel, table=True):
     user_id: int | None = Field(default=None, foreign_key="user.id", primary_key=True)
     group_id: int | None = Field(default=None, foreign_key="group.id", primary_key=True)
@@ -21,9 +25,26 @@ class UserItemLink(SQLModel, table=True):
     user_id: int | None = Field(default=None, foreign_key="user.id", primary_key=True)
     item_id: int | None = Field(default=None, foreign_key="item.id", primary_key=True)
 
+class ResetPasswordToken(BaseModel):
+    reset_password_token: str
+    token_type: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class ResetPasswordRequestData(BaseModel):
+    new_password: str
+    token: str
+
+class PasswordResetToken(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    user_id: int = Field(default=None, foreign_key="user.id")
+    token_hash: str = Field(index=True, unique=True)
+    expires_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+        default_factory=lambda: (datetime.now(timezone.utc) + timedelta(seconds=180)) # Production default fallback
+    )
 
 
 # CLASSES

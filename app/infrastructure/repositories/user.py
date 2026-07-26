@@ -22,14 +22,19 @@ class UserRepository(IUserRepository):
     users = session.exec(select(User).filter(User.username.contains(search_query))).all() # type: ignore
     return users
   
-
+  async def get_by_email_or_none(self, session: Session, email: str) -> User | None:
+    user = session.exec(select(User).where(User.username == email)).first()
+    if user:
+      return user
+    return None
+  
   async def get_by_username_or_none(self, session: Session, username: str) -> User | None:
     user = session.exec(select(User).where(User.username == username)).first()
     if(user):
       return user
     return None
   
-  async def get_by_id(self, session: Session, id: int) -> User | None:
+  async def get_by_id_or_none(self, session: Session, id: int) -> User | None:
     user = session.exec(select(User).where(User.id == id)).first()
     if(user):
       return user
@@ -53,3 +58,9 @@ class UserRepository(IUserRepository):
   async def get_multiple_by_id(self, session: Session, ids: list[int]) -> list[User]:
     users = session.exec(select(User).where(col(User.id).in_(ids))).all()
     return list(users)
+  
+  async def update_user(self, session: Session, user: User) -> User:
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user

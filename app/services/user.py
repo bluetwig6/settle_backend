@@ -40,12 +40,18 @@ class UserService(IUserService):
   async def get_user_by_username(self, session: Any, username: str) -> User | None:
     return await self._user_repo.get_by_username_or_none(session, username)
   
+  async def get_user_by_id_or_none(self, session: Any, user_id: int) -> User | None:
+    return await self._user_repo.get_by_id_or_none(session=session,id=user_id)
+    
+  async def get_user_by_email(self,session: Session, email: str) -> User | None:
+    return await self._user_repo.get_by_email_or_none(session,email)
+  
   async def get_user_groups(self, session: Session, user: User) -> list[Group]:
     return user.groups
   
   async def remove_user_from_group(self, session: Session, current_user: User, group_id: int, user_id: int) -> None:
     group = await self._group_repo.get_by_id_or_none(session, id=group_id)
-    user = await self._user_repo.get_by_id(session, id=user_id)
+    user = await self._user_repo.get_by_id_or_none(session, id=user_id)
     if (not group) or (not user):
       raise HTTPException(
           status_code=status.HTTP_409_CONFLICT,
@@ -70,7 +76,7 @@ class UserService(IUserService):
   
   async def add_user_to_group(self, session: Session, current_user: User, group_id: int, user_id: int) -> User:
     group = await self._group_repo.get_by_id_or_none(session=session, id=group_id)
-    user = await self._user_repo.get_by_id(session=session, id=user_id)
+    user = await self._user_repo.get_by_id_or_none(session=session, id=user_id)
     if (not group) or (not user):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -92,3 +98,13 @@ class UserService(IUserService):
             headers={"WWW-Authenticate": "Bearer"},
         )
         raise(credentials_exception)
+      
+  async def update_user(self, session: Session, user: User) -> User:
+    try:
+      new_user = await self._user_repo.update_user(session=session, user=user)
+      return new_user
+    except:
+      raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail= "Unable to update user"
+      )
